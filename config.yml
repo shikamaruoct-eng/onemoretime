@@ -1,0 +1,37 @@
+timezone: Asia/Shanghai
+
+topn:
+  A: 40
+  HK: 20
+  US: 40
+
+# 趋势突破参数
+breakout:
+  lookback_days: 60          # 突破参考的前高周期（推荐 60）
+  confirm_buffer: 0.005      # 突破确认缓冲（0.5%）
+  overheat_deviation: 0.08   # 乖离过热阈值（离MA20超过8%扣分）
+  vol_confirm_mult: 1.2      # 放量确认倍数：量/额 > 20日均值 * 1.2
+
+# 过滤器（先过滤再评分）
+filters:
+  min_turnover:
+    A: 150000000     # 1.5亿（A股）
+    HK: 60000000      # 6000万（港股）
+    US: 8000000       # 800万美元“估算成交额”（美股用 price*volume 估算）
+  max_abs_pct_change:
+    A: 12
+    HK: 15
+    US: 12
+
+# 风控价/止盈价（用于“建议入场/止损/止盈”）
+trade:
+  stop_mode: "max(ma20, breakout_level)"   # 止损参考
+  stop_buffer: 0.02                         # 低于参考位2%触发
+  take_profit_rr: 2.0                       # 止盈 = 入场到止损距离 * 2倍
+
+# 评分权重（趋势突破优先）
+weights:
+  breakout: 45
+  trend: 25
+  volume: 20
+  risk: 10
