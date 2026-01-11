@@ -3,7 +3,7 @@ name: Build Market Top Dashboard
 on:
   workflow_dispatch:
   schedule:
-    # 每天北京时间 08:30 运行（= UTC 00:30）
+    # 每天北京时间 08:30（= UTC 00:30）
     - cron: "30 0 * * *"
 
 permissions:
