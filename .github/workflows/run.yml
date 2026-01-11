@@ -3,12 +3,10 @@ name: Build Market Top Dashboard
 on:
   workflow_dispatch:
   schedule:
-    # GitHub cron 用 UTC；北京时间 = UTC+8
-    # 北京时间 06:30 => UTC 22:30（前一天）
-    - cron: "30 22 * * *"
+    - cron: "30 22 * * *"  # UTC 22:30 = 北京时间 06:30
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -19,7 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -39,6 +37,14 @@ jobs:
         run: |
           python main.py
 
+      - name: Commit docs/data.json
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs/data.json data/universe_cache.json || true
+          git commit -m "Update dashboard data" || echo "No changes"
+          git push
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -47,8 +53,6 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
