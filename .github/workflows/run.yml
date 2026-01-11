@@ -3,6 +3,8 @@ name: Build Market Top Dashboard
 on:
   workflow_dispatch:
   schedule:
+    # GitHub Actions cron 使用 UTC
+    # 北京时间 08:30 = UTC 00:30
     - cron: "30 0 * * *"
 
 permissions:
@@ -43,12 +45,15 @@ jobs:
           path: docs
 
   deploy:
-   needs: build
-   runs-on: ubuntu-latest
-   environment:
-    name: github-pages
-    url: ${{ steps.deployment.outputs.page_url }}
-   steps:
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+    needs: build
+    runs-on: ubuntu-latest
+
+    # 关键：没有这个就会报 Missing environment（你截图的报错）
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
