@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Market Top Dashboard</title>
+  <style>
+    body { font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; margin: 20px; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    select, input { padding:6px 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #eee; padding: 8px 10px; vertical-align: top; }
+    th { background: #fafafa; position: sticky; top: 0; z-index: 1; text-align:left; }
+    .small { color:#666; font-size:12px; }
+    .pill { padding:2px 8px; border-radius: 999px; font-size:12px; border:1px solid #ddd; display:inline-block; }
+    .good { border-color:#cfe9d4; background:#f3fbf5; }
+    .warn { border-color:#ffe6b3; background:#fffaf0; }
+    .bad  { border-color:#ffd0d0; background:#fff5f5; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <h2>Market Top Dashboard</h2>
+  <div id="meta" class="small">加载中...</div>
+
+  <div class="row">
+    <label>市场：
+      <select id="market">
+        <option value="ALL">全部</option>
+        <option value="A">A股</option>
+        <option value="HK">港股</option>
+        <option value="US">美股</option>
+      </select>
+    </label>
+
+    <label>最低评分：
+      <select id="minScore">
+        <option value="0">0</option>
+        <option value="2.5">2.5</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="4.5">4.5</option>
+      </select>
+    </label>
+
+    <label>搜索：
+      <input id="q" placeholder="代码/公司名" />
+    </label>
+
+    <label>排序：
+      <select id="sort">
+        <option value="score_desc">评分↓</option>
+        <option value="pct_desc">涨跌幅↓</option>
+        <option value="pct_asc">涨跌幅↑</option>
+      </select>
+    </label>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>公司名及代码</th>
+        <th>所在市场</th>
+        <th>评分</th>
+        <th>建议入场价</th>
+        <th>止盈价</th>
+        <th>止损价</th>
+        <th>当前价</th>
+        <th>涨跌幅</th>
+        <th>更新时间</th>
+        <th>动作建议</th>
+        <th>动作原因</th>
+        <th>我的补充</th>
+      </tr>
+    </thead>
+    <tbody id="tb"></tbody>
+  </table>
+
+<script>
+let rows = [];
+
+function pillClass(score){
+  if (score >= 4.5) return "pill good";
+  if (score >= 3.0) return "pill warn";
+  return "pill bad";
+}
+
+function fmt(x){
+  if (x === null || x === undefined || x === "") return "-";
+  return x;
+}
+
+function render(){
+  const market = document.getElementById("market").value;
+  const minScore = parseFloat(document.getElementById("minScore").value);
+  const q = (document.getElementById("q").value || "").toLowerCase().trim();
+  const sort = document.getElementById("sort").value;
+
+  let out = rows.filter(r => {
+    if (market !== "ALL" && r["所在市场"] !== market) return false;
+    if (parseFloat(r["评分"] || 0) < minScore) return false;
+    if (q){
+      const s = (r["公司名及代码"] || "").toLowerCase();
+      if (!s.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (sort === "score_desc"){
+    out.sort((a,b)=> (parseFloat(b["评分"]||0) - parseFloat(a["评分"]||0)));
+  } else if (sort === "pct_desc"){
+    out.sort((a,b)=> (parseFloat(b["涨跌幅"]||-999) - parseFloat(a["涨跌幅"]||-999)));
+  } else if (sort === "pct_asc"){
+    out.sort((a,b)=> (parseFloat(a["涨跌幅"]||999) - parseFloat(b["涨跌幅"]||999)));
+  }
+
+  const tb = document.getElementById("tb");
+  tb.innerHTML = out.map(r => `
+    <tr>
+      <td class="mono">${fmt(r["公司名及代码"])}</td>
+      <td>${fmt(r["所在市场"])}</td>
+      <td><span class="${pillClass(parseFloat(r["评分"]||0))}">${fmt(r["评分"])}</span></td>
+      <td>${fmt(r["建议入场价"])}</td>
+      <td>${fmt(r["止盈价"])}</td>
+      <td>${fmt(r["止损价"])}</td>
+      <td>${fmt(r["当前价"])}</td>
+      <td>${fmt(r["涨跌幅"])}</td>
+      <td class="small">${fmt(r["更新时间"])}</td>
+      <td>${fmt(r["动作建议"])}</td>
+      <td class="small">${fmt(r["动作原因"])}</td>
+      <td class="small">${fmt(r["我的补充"])}</td>
+    </tr>
+  `).join("");
+}
+
+async function main(){
+  const resp = await fetch("./data.json?_=" + Date.now());
+  const data = await resp.json();
+  rows = data.rows || [];
+  document.getElementById("meta").innerText =
+    `更新时间：${data.updated_at_bjt || "-"}；覆盖：A股 ${data.counts?.A||0} / 港股 ${data.counts?.HK||0} / 美股 ${data.counts?.US||0}；失败跳过：${data.skipped||0}`;
+  ["market","minScore","q","sort"].forEach(id=>{
+    document.getElementById(id).addEventListener("input", render);
+    document.getElementById(id).addEventListener("change", render);
+  });
+  render();
+}
+main();
+</script>
+</body>
+</html>
